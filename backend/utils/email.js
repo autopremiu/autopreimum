@@ -15,7 +15,7 @@ async function enviarEncuestaEmail(cliente, servicioId) {
     const linkEncuesta = `http://192.168.128.13:3000/encuesta/${servicioId}`;
 
     const mailOptions = {
-        from: "sebasocampo721@gmail.com",
+        from: "comercialautopremium@gmail.com",
         to: cliente.email,
         subject: "Encuesta de Satisfacción - Taller",
         html: `
