@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Autopremium</title>
+    <style>
+        body {
+            background: #0f1012;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            font-family: Arial;
+        }
+        .card {
+            background:#161718;
+            padding:30px;
+            border-radius:10px;
+            width:300px;
+        }
+        input {
+            width:100%;
+            padding:10px;
+            margin-bottom:12px;
+            background:#0f1012;
+            border:1px solid #252729;
+            color:white;
+            border-radius:6px;
+        }
+        button {
+            width:100%;
+            padding:10px;
+            background:#e10000;
+            border:none;
+            color:white;
+            border-radius:6px;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="color:white;text-align:center;">Autopremium Login</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Contraseña">
+    <button onclick="login()">Ingresar</button>
+    <a href="/register.html" style="color:#ffffff;display:block;text-align:center;margin-top:10px;">
+    Solicitar acceso
+</a>
+
+    <p id="mensaje" style="color:red;text-align:center;"></p>
+    <a href="/forgot.html" style="color:#ffffff;display:block;text-align:center;margin-top:10px;">
+    ¿Olvidaste tu contraseña?
+</a>
+
+</div>
+
+<script>
+
+// Si ya tiene token, lo mandamos al dashboard
+if (localStorage.getItem("token")) {
+    window.location.href = "/index.html";
+}
+
+async function login() {
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const res = await fetch("/api/auth/login", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if(res.ok) {
+        localStorage.setItem("token", data.token);
+        window.location.href = "/index.html";
+    } else {
+        document.getElementById("mensaje").innerText = data.message;
+    }
+}
+</script>
+
+
+</body>
+</html>

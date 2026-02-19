@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recuperar contraseña - Autopremium</title>
+    <style>
+        body {
+            background: #0f1012;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            font-family: Arial;
+        }
+        .card {
+            background:#161718;
+            padding:30px;
+            border-radius:10px;
+            width:300px;
+        }
+        input {
+            width:100%;
+            padding:10px;
+            margin-bottom:12px;
+            background:#0f1012;
+            border:1px solid #252729;
+            color:white;
+            border-radius:6px;
+        }
+        button {
+            width:100%;
+            padding:10px;
+            background:#e10000;
+            border:none;
+            color:white;
+            border-radius:6px;
+            cursor:pointer;
+        }
+        button:hover {
+            background:#c40000;
+        }
+        .link {
+            color:#e10000;
+            text-align:center;
+            display:block;
+            margin-top:10px;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="color:white;text-align:center;">Recuperar contraseña</h2>
+
+    <input type="email" id="email" placeholder="Ingresa tu email">
+    <button onclick="enviar()">Enviar enlace</button>
+
+    <p id="mensaje" style="color:white;text-align:center;margin-top:10px;"></p>
+
+    <a href="/login.html" class="link">Volver al login</a>
+</div>
+
+<script>
+async function enviar(){
+
+    const email = document.getElementById("email").value;
+
+    const res = await fetch("/api/auth/forgot-password", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("mensaje").innerText = data.message;
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nueva contraseña - Autopremium</title>
+    <style>
+        body {
+            background: #0f1012;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            font-family: Arial;
+        }
+        .card {
+            background:#161718;
+            padding:30px;
+            border-radius:10px;
+            width:300px;
+        }
+        input {
+            width:100%;
+            padding:10px;
+            margin-bottom:12px;
+            background:#0f1012;
+            border:1px solid #252729;
+            color:white;
+            border-radius:6px;
+        }
+        button {
+            width:100%;
+            padding:10px;
+            background:#e10000;
+            border:none;
+            color:white;
+            border-radius:6px;
+            cursor:pointer;
+        }
+        button:hover {
+            background:#c40000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="color:white;text-align:center;">Nueva contraseña</h2>
+
+    <input type="password" id="password" placeholder="Nueva contraseña">
+    <button onclick="reset()">Actualizar contraseña</button>
+
+    <p id="mensaje" style="color:white;text-align:center;margin-top:10px;"></p>
+</div>
+
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+
+async function reset(){
+
+    const newPassword = document.getElementById("password").value;
+
+    const res = await fetch("/api/auth/reset-password", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ token, newPassword })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("mensaje").innerText = data.message;
+
+    if(res.ok){
+        setTimeout(() => {
+            window.location.href = "/login.html";
+        }, 2000);
+    }
+}
+
+</script>
+
+</body>
+</html>
