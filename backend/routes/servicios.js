@@ -66,7 +66,19 @@ router.put("/:id/entregar", (req, res) => {
 
         console.log("✅ Servicio actualizado");
 
-        const sql = `...`;
+        const sql = `
+            SELECT 
+                CONCAT(
+                    c.primer_nombre, ' ',
+                    IFNULL(c.segundo_nombre, ''), ' ',
+                    c.primer_apellido
+                ) AS nombre,
+                c.email
+            FROM servicios s
+            JOIN vehiculos v ON s.vehiculo_id = v.id
+            JOIN clientes c ON v.cliente_id = c.id
+            WHERE s.id = ?
+        `;
 
         db.query(sql, [servicioId], async (err, results) => {
 
