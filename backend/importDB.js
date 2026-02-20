@@ -1,23 +1,25 @@
-// importDB.js
+const path = require("path");
 const fs = require("fs");
 const mysql = require("mysql2");
 
-const pool = mysql.createPool({
+const filePath = path.join(__dirname, "autopremium.sql");
+
+console.log("Buscando archivo en:", filePath);
+
+const sql = fs.readFileSync(filePath, "utf8");
+
+const connection = mysql.createConnection({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    multipleStatements: true
 });
 
-const sql = fs.readFileSync("autopremium.sql", "utf8");
-
-pool.query(sql, (err) => {
-    if (err) {
-        console.error("Error importando:", err);
-    } else {
-        console.log("Base importada correctamente 🚀");
-    }
-    process.exit();
+connection.query(sql, (err) => {
+    if (err) console.error("Error importando:", err);
+    else console.log("Base importada correctamente 🚀");
+    connection.end();
 });
