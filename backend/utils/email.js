@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 async function enviarEncuestaEmail(cliente, servicioId) {
 
-    const linkEncuesta = `http://192.168.128.13:3000/encuesta/${servicioId}`;
+    const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
 
     const mailOptions = {
         from: "comercialautopremium@gmail.com",
