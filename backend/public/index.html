@@ -1828,21 +1828,30 @@ async function cargarServicios() {
 
 
 
-
 async function entregarServicio(id) {
 
     mostrarModal("¿Seguro que deseas entregar el vehículo? Se enviará encuesta.", async () => {
 
-        const res = await fetch(`${apiBase}/servicios/${id}/entregar`, {
-            method: "PUT"
-        });
+        try {
+            const res = await fetch(`${apiBase}/servicios/${id}/entregar`, {
+                method: "PUT"
+            });
 
-        const data = await res.json();
+            const data = await res.json();
 
-        mostrarMensajeServicio(data.message, "ok");
+            if (!res.ok) {
+                throw new Error(data.message || "Error al entregar servicio");
+            }
 
-        cargarServicios();
-        cargarEstadisticas();
+            mostrarMensajeServicio(data.message, "ok");
+
+            cargarServicios();
+            cargarEstadisticas();
+
+        } catch (error) {
+            console.error("Error en entregar:", error);
+            mostrarMensajeServicio(error.message, "error");
+        }
     });
 }
 
