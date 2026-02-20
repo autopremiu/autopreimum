@@ -2,20 +2,21 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     }
 });
 
-
 async function enviarEncuestaEmail(cliente, servicioId) {
 
     const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
 
     const mailOptions = {
-        from: "comercialautopremium@gmail.com",
+        from: process.env.EMAIL_USER,
         to: cliente.email,
         subject: "Encuesta de Satisfacción - Taller",
         html: `
