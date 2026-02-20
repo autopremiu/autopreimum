@@ -116,19 +116,6 @@ router.put("/:id/entregar", (req, res) => {
 });
 
 
-try {
-    await enviarEncuestaEmail(cliente, servicioId);
-    console.log("📧 CORREO ENVIADO");
-    return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
-} catch (error) {
-    console.log("❌ ERROR ENVIANDO:");
-    console.log(error);
-    console.log("MENSAJE:", error.message);
-    return res.status(500).json({
-        message: "Servicio entregado pero falló el envío",
-        error: error.message
-    });
-}
 
 
 router.put("/:id/estado", (req, res) => {
