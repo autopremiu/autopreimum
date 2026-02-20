@@ -2,11 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const mysql = require("mysql2");
 
-const filePath = path.join(__dirname, "autopremium.sql");
-
-console.log("Buscando archivo en:", filePath);
-
-const sql = fs.readFileSync(filePath, "utf8");
+const DB_NAME = process.env.DB_NAME;
 
 const connection = mysql.createConnection({
     host: process.env.DB_HOST,
@@ -17,28 +13,37 @@ const connection = mysql.createConnection({
     multipleStatements: true
 });
 
-connection.query("CREATE DATABASE IF NOT EXISTS ferrocarril;", (err) => {
+const filePath = path.join(__dirname, "autopremium.sql");
+console.log("Buscando archivo en:", filePath);
+
+const sql = fs.readFileSync(filePath, "utf8");
+
+connection.connect((err) => {
     if (err) {
-        console.error("Error creando DB:", err);
+        console.error("Error conexión:", err);
         return;
     }
 
-    connection.query("USE ferrocarril;", (err) => {
+    connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`, (err) => {
         if (err) {
-            console.error("Error usando DB:", err);
+            console.error("Error creando DB:", err);
             return;
         }
 
-        connection.query(sql, (err) => {
-            if (err) console.error("Error importando:", err);
-            else console.log("Base importada correctamente 🚀");
-            connection.end();
+        connection.query(`USE \`${DB_NAME}\`;`, (err) => {
+            if (err) {
+                console.error("Error seleccionando DB:", err);
+                return;
+            }
+
+            connection.query(sql, (err) => {
+                if (err) {
+                    console.error("Error importando:", err);
+                } else {
+                    console.log("Base importada correctamente 🚀");
+                }
+                connection.end();
+            });
         });
     });
-});
-
-connection.query(sql, (err) => {
-    if (err) console.error("Error importando:", err);
-    else console.log("Base importada correctamente 🚀");
-    connection.end();
 });
