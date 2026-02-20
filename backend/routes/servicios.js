@@ -64,6 +64,10 @@ router.put("/:id/entregar", (req, res) => {
             return res.status(500).json({ error: err });
         }
 
+        if (!result || result.affectedRows === 0) {
+            return res.status(404).json({ message: "Servicio no encontrado" });
+        }
+
         console.log("✅ Servicio actualizado");
 
         const sql = `
@@ -87,6 +91,11 @@ router.put("/:id/entregar", (req, res) => {
                 return res.status(500).json({ error: err });
             }
 
+            if (!results || results.length === 0) {
+                console.log("❌ Cliente no encontrado");
+                return res.status(404).json({ message: "Cliente no encontrado" });
+            }
+
             const cliente = results[0];
 
             console.log("📧 Intentando enviar a:", cliente.email);
@@ -94,10 +103,13 @@ router.put("/:id/entregar", (req, res) => {
             try {
                 await enviarEncuestaEmail(cliente, servicioId);
                 console.log("📧 CORREO ENVIADO");
-                res.json({ message: "Servicio entregado y encuesta enviada ✅" });
+                return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
             } catch (error) {
                 console.log("❌ ERROR ENVIANDO:", error);
-                res.status(500).json({ error });
+                return res.status(500).json({
+                    message: "Servicio entregado pero falló el envío",
+                    error: error.message
+                });
             }
         });
     });
