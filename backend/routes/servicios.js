@@ -51,50 +51,42 @@ router.post("/", (req, res) => {
 // 👇👇 AQUÍ VA EL NUEVO ENDPOINT 👇👇
 router.put("/:id/entregar", (req, res) => {
 
+    console.log("🔥 ENTREGAR SERVICIO LLAMADO");
+
     const servicioId = req.params.id;
 
     const updateSql = "UPDATE servicios SET estado = 'entregado' WHERE id = ?";
 
     db.query(updateSql, [servicioId], (err, result) => {
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Servicio no encontrado" });
+
+        if (err) {
+            console.log("❌ Error update:", err);
+            return res.status(500).json({ error: err });
         }
-        if (err) return res.status(500).json({ error: err });
 
-        const sql = `
-            SELECT 
-                CONCAT(
-                    c.primer_nombre, ' ',
-                    IFNULL(c.segundo_nombre, ''), ' ',
-                    c.primer_apellido
-                ) AS nombre,
-                c.email
-            FROM servicios s
-            JOIN vehiculos v ON s.vehiculo_id = v.id
-            JOIN clientes c ON v.cliente_id = c.id
-            WHERE s.id = ?
-        `;
+        console.log("✅ Servicio actualizado");
 
+        const sql = `...`;
 
         db.query(sql, [servicioId], async (err, results) => {
 
-            if (err) return res.status(500).json({ error: err });
-
-            if (results.length === 0)
-                return res.status(404).json({ message: "Servicio no encontrado" });
+            if (err) {
+                console.log("❌ Error buscando cliente:", err);
+                return res.status(500).json({ error: err });
+            }
 
             const cliente = results[0];
 
+            console.log("📧 Intentando enviar a:", cliente.email);
+
             try {
                 await enviarEncuestaEmail(cliente, servicioId);
+                console.log("📧 CORREO ENVIADO");
                 res.json({ message: "Servicio entregado y encuesta enviada ✅" });
             } catch (error) {
-                res.status(500).json({ 
-                    error: "Servicio entregado pero error enviando correo",
-                    detalle: error 
-                });
+                console.log("❌ ERROR ENVIANDO:", error);
+                res.status(500).json({ error });
             }
-
         });
     });
 });
