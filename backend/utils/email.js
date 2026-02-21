@@ -1,10 +1,10 @@
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const Brevo = require('@getbrevo/brevo');
 require("dotenv").config();
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const client = new Brevo.TransactionalEmailsApi();
 
-apiInstance.setApiKey(
-  SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
+client.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
   process.env.BREVO_API_KEY
 );
 
@@ -12,7 +12,7 @@ async function enviarEncuestaEmail(cliente, servicioId) {
 
     const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
 
-    const sendSmtpEmail = {
+    const email = {
         to: [{
             email: cliente.email,
             name: cliente.nombre
@@ -29,7 +29,7 @@ async function enviarEncuestaEmail(cliente, servicioId) {
         `
     };
 
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    await client.sendTransacEmail(email);
 }
 
 module.exports = enviarEncuestaEmail;
