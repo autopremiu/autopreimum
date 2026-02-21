@@ -1,35 +1,35 @@
-const Brevo = require('@getbrevo/brevo');
+const brevo = require('@getbrevo/brevo');
 require("dotenv").config();
-
-const client = new Brevo.TransactionalEmailsApi();
-
-client.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY
-);
 
 async function enviarEncuestaEmail(cliente, servicioId) {
 
+    const apiInstance = new brevo.TransactionalEmailsApi();
+
+    apiInstance.setApiKey(
+        brevo.TransactionalEmailsApiApiKeys.apiKey,
+        process.env.BREVO_API_KEY
+    );
+
     const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
 
-    const email = {
-        to: [{
-            email: cliente.email,
-            name: cliente.nombre
-        }],
-        sender: {
-            email: "comercialautopremium@gmail.com",
-            name: "Autopremium"
-        },
-        subject: "Encuesta de Satisfacción - Taller",
-        htmlContent: `
-            <h2>Hola ${cliente.nombre}</h2>
-            <p>Gracias por confiar en nuestro taller.</p>
-            <a href="${linkEncuesta}">Responder Encuesta</a>
-        `
-    };
+    const sendSmtpEmail = new brevo.SendSmtpEmail();
 
-    await client.sendTransacEmail(email);
+    sendSmtpEmail.subject = "Encuesta de Satisfacción - Taller";
+    sendSmtpEmail.htmlContent = `
+        <h2>Hola ${cliente.nombre}</h2>
+        <p>Gracias por confiar en nuestro taller.</p>
+        <a href="${linkEncuesta}">Responder Encuesta</a>
+    `;
+    sendSmtpEmail.sender = {
+        name: "Autopremium",
+        email: "comercialautopremium@gmail.com"
+    };
+    sendSmtpEmail.to = [{
+        email: cliente.email,
+        name: cliente.nombre
+    }];
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
 }
 
 module.exports = enviarEncuestaEmail;
