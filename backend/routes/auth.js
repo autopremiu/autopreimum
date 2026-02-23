@@ -56,6 +56,9 @@ router.post("/forgot-password", (req, res) => {
 
     db.query("SELECT * FROM usuarios WHERE email = ?", [email], (err, results) => {
 
+        if (err)
+            return res.status(500).json({ message: "Error servidor" });
+
         if (results.length === 0)
             return res.status(404).json({ message: "Usuario no encontrado" });
 
@@ -66,18 +69,29 @@ router.post("/forgot-password", (req, res) => {
 
         db.query(
             "UPDATE usuarios SET reset_token = ?, reset_expires = ? WHERE id = ?",
-            [token, expires, usuario.id]
+            [token, expires, usuario.id],
+            async (err2) => {
+
+                if (err2)
+                    return res.status(500).json({ message: "Error guardando token" });
+
+                const link = `https://autopreimum.onrender.com/reset.html?token=${token}`;
+
+                try {
+                    await enviarEmail(
+                        email,
+                        "Recuperar contraseña",
+                        `Haz click aquí para cambiar tu contraseña: ${link}`
+                    );
+
+                    res.json({ message: "Correo enviado" });
+
+                } catch (error) {
+                    console.error(error);
+                    res.status(500).json({ message: "Error enviando correo" });
+                }
+            }
         );
-
-        const link = `http://localhost:3000/reset.html?token=${token}`;
-
-        enviarEmail(
-            email,
-            "Recuperar contraseña",
-            `Haz click aquí para cambiar tu contraseña: ${link}`
-        );
-
-        res.json({ message: "Correo enviado" });
     });
 });
 
