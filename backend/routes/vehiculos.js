@@ -2,76 +2,109 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 
+/* =========================
+   📊 ESTADÍSTICAS POR MARCA
+========================= */
+router.get("/estadisticas/marcas", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        UPPER(TRIM(marca)) AS marca,
+        COUNT(*) AS total
+      FROM vehiculos
+      GROUP BY UPPER(TRIM(marca))
+      ORDER BY total DESC
+    `);
 
-// 📊 Estadísticas por marca (para gráfica)
-router.get("/estadisticas/marcas", (req, res) => {
+    res.json(result.rows);
 
-    const sql = `
-        SELECT 
-            UPPER(TRIM(marca)) AS marca,
-            COUNT(*) AS total
-        FROM vehiculos
-        GROUP BY UPPER(TRIM(marca))
-        ORDER BY total DESC
-    `;
-
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
-
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+/* =========================
+   LISTAR VEHÍCULOS
+========================= */
+router.get("/", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT v.*, c.primer_nombre, c.primer_apellido 
+      FROM vehiculos v
+      JOIN clientes c ON v.cliente_id = c.id
+    `);
 
-// Listar vehículos
-router.get("/", (req, res) => {
-    const sql = `
-        SELECT v.*, c.primer_nombre, c.primer_apellido 
-        FROM vehiculos v
-        JOIN clientes c ON v.cliente_id = c.id
-    `;
-    db.query(sql, (err, results) => {
-        if(err) return res.status(500).json({error: err});
-        res.json(results);
-    });
+    res.json(result.rows);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Crear vehículo
-router.post("/", (req, res) => {
+/* =========================
+   CREAR VEHÍCULO
+========================= */
+router.post("/", async (req, res) => {
+  try {
     const { cliente_id, placa, marca, modelo, anio, color } = req.body;
-    const sql = "INSERT INTO vehiculos (cliente_id, placa, marca, modelo, anio, color) VALUES (?, ?, ?, ?, ?, ?)";
-    db.query(sql, [cliente_id, placa, marca, modelo, anio, color], (err, result) => {
-        if(err) return res.status(500).json({error: err});
-        res.json({message: "Vehículo registrado ✅"});
-    });
+
+    await db.query(`
+      INSERT INTO vehiculos 
+      (cliente_id, placa, marca, modelo, anio, color) 
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [cliente_id, placa, marca, modelo, anio, color]);
+
+    res.json({ message: "Vehículo registrado ✅" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-router.put("/:id", (req, res) => {
+/* =========================
+   ACTUALIZAR VEHÍCULO
+========================= */
+router.put("/:id", async (req, res) => {
+  try {
     const { cliente_id, placa, marca, modelo, anio, color } = req.body;
     const id = req.params.id;
 
-    const sql = `
-        UPDATE vehiculos
-        SET cliente_id=?, placa=?, marca=?, modelo=?, anio=?, color=?
-        WHERE id=?
-    `;
+    const result = await db.query(`
+      UPDATE vehiculos
+      SET cliente_id=$1, placa=$2, marca=$3, modelo=$4, anio=$5, color=$6
+      WHERE id=$7
+    `, [cliente_id, placa, marca, modelo, anio, color, id]);
 
-    db.query(sql, [cliente_id, placa, marca, modelo, anio, color, id], (err, result) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ message: "Vehículo actualizado ✅" });
-    });
+    if (result.rowCount === 0)
+      return res.status(404).json({ message: "Vehículo no encontrado" });
+
+    res.json({ message: "Vehículo actualizado ✅" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-router.delete("/:id", (req, res) => {
+/* =========================
+   ELIMINAR VEHÍCULO
+========================= */
+router.delete("/:id", async (req, res) => {
+  try {
     const id = req.params.id;
 
-    db.query("DELETE FROM vehiculos WHERE id=?", [id], (err) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ message: "Vehículo eliminado ✅" });
-    });
-});
+    const result = await db.query(
+      "DELETE FROM vehiculos WHERE id = $1",
+      [id]
+    );
 
+    if (result.rowCount === 0)
+      return res.status(404).json({ message: "Vehículo no encontrado" });
+
+    res.json({ message: "Vehículo eliminado ✅" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

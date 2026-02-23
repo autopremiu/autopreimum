@@ -13,184 +13,190 @@ const SECRET = process.env.JWT_SECRET;
 /* =========================
    LOGIN
 ========================= */
-router.post("/login", (req, res) => {
-
+router.post("/login", async (req, res) => {
+  try {
     const { email, password } = req.body;
 
     if (!email || !password)
-        return res.status(400).json({ message: "Email y contraseña requeridos" });
+      return res.status(400).json({ message: "Email y contraseña requeridos" });
 
-    db.query("SELECT * FROM usuarios WHERE email = ?", [email], async (err, results) => {
+    const result = await db.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [email]
+    );
 
-        if (err) return res.status(500).json({ error: err });
+    if (result.rows.length === 0)
+      return res.status(401).json({ message: "Usuario no encontrado" });
 
-        if (results.length === 0)
-            return res.status(401).json({ message: "Usuario no encontrado" });
+    const usuario = result.rows[0];
 
-        const usuario = results[0];
+    const passwordValida = await bcrypt.compare(password, usuario.password);
 
-        const passwordValida = await bcrypt.compare(password, usuario.password);
+    if (!passwordValida)
+      return res.status(401).json({ message: "Contraseña incorrecta" });
 
-        if (!passwordValida)
-            return res.status(401).json({ message: "Contraseña incorrecta" });
+    const token = jwt.sign(
+      { id: usuario.id },
+      SECRET,
+      { expiresIn: "8h" }
+    );
 
-        const token = jwt.sign(
-            { id: usuario.id },
-            SECRET,
-            { expiresIn: "8h" }
-        );
+    res.json({ token });
 
-        res.json({ token });
-    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 /* =========================
    RECUPERAR CONTRASEÑA
 ========================= */
-router.post("/forgot-password", (req, res) => {
-
+router.post("/forgot-password", async (req, res) => {
+  try {
     const { email } = req.body;
 
     if (!email)
-        return res.status(400).json({ message: "Email requerido" });
+      return res.status(400).json({ message: "Email requerido" });
 
-    db.query("SELECT * FROM usuarios WHERE email = ?", [email], (err, results) => {
+    const result = await db.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [email]
+    );
 
-        if (err)
-            return res.status(500).json({ message: err.message });
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Usuario no encontrado" });
 
-        if (results.length === 0)
-            return res.status(404).json({ message: "Usuario no encontrado" });
+    const usuario = result.rows[0];
 
-        const usuario = results[0];
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
 
-        const token = crypto.randomBytes(32).toString("hex");
-        const expires = new Date(Date.now() + 15 * 60 * 1000);
+    await db.query(
+      "UPDATE usuarios SET reset_token = $1, reset_expires = $2 WHERE id = $3",
+      [token, expires, usuario.id]
+    );
 
-        db.query(
-            "UPDATE usuarios SET reset_token = ?, reset_expires = ? WHERE id = ?",
-            [token, expires, usuario.id],
-            async (err2) => {
+    const link = `https://autopreimum.onrender.com/reset.html?token=${token}`;
 
-                if (err2)
-                    return res.status(500).json({ message: "Error guardando token" });
+    await enviarEmail(
+      email,
+      "Recuperar contraseña",
+      `Haz click aquí para cambiar tu contraseña: ${link}`
+    );
 
-                const link = `https://autopreimum.onrender.com/reset.html?token=${token}`;
+    res.json({ message: "Correo enviado" });
 
-                try {
-                    await enviarEmail(
-                        email,
-                        "Recuperar contraseña",
-                        `Haz click aquí para cambiar tu contraseña: ${link}`
-                    );
-
-                    res.json({ message: "Correo enviado" });
-
-                } catch (error) {
-                    console.error("ERROR REAL:", error);
-                    res.status(500).json({ message: error.message });
-                }
-            }
-        );
-    });
+  } catch (error) {
+    console.error("ERROR REAL:", error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 /* =========================
    RESET PASSWORD
 ========================= */
 router.post("/reset-password", async (req, res) => {
-
+  try {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword)
-        return res.status(400).json({ message: "Datos incompletos" });
+      return res.status(400).json({ message: "Datos incompletos" });
 
-    db.query(
-        "SELECT * FROM usuarios WHERE reset_token = ? AND reset_expires > NOW()",
-        [token],
-        async (err, results) => {
-
-            if (results.length === 0)
-                return res.status(400).json({ message: "Token inválido o expirado" });
-
-            const usuario = results[0];
-            const hashed = await bcrypt.hash(newPassword, 10);
-
-            db.query(
-                "UPDATE usuarios SET password = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?",
-                [hashed, usuario.id]
-            );
-
-            res.json({ message: "Contraseña actualizada" });
-        }
+    const result = await db.query(
+      "SELECT * FROM usuarios WHERE reset_token = $1 AND reset_expires > NOW()",
+      [token]
     );
+
+    if (result.rows.length === 0)
+      return res.status(400).json({ message: "Token inválido o expirado" });
+
+    const usuario = result.rows[0];
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await db.query(
+      "UPDATE usuarios SET password = $1, reset_token = NULL, reset_expires = NULL WHERE id = $2",
+      [hashed, usuario.id]
+    );
+
+    res.json({ message: "Contraseña actualizada" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 /* =========================
    SOLICITUD DE REGISTRO
 ========================= */
 router.post("/register-request", async (req, res) => {
-
+  try {
     const { nombre, email, password } = req.body;
 
     if (!nombre || !email || !password)
-        return res.status(400).json({ message: "Datos incompletos" });
+      return res.status(400).json({ message: "Datos incompletos" });
 
     const hashed = await bcrypt.hash(password, 10);
 
-    db.query(
-        "INSERT INTO solicitudes_usuarios (nombre, email, password, estado) VALUES (?, ?, ?, 'pendiente')",
-        [nombre, email, hashed]
+    await db.query(
+      "INSERT INTO solicitudes_usuarios (nombre, email, password, estado) VALUES ($1, $2, $3, 'pendiente')",
+      [nombre, email, hashed]
     );
 
     res.json({ message: "Solicitud enviada. Espera aprobación." });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 /* =========================
    LISTAR SOLICITUDES
-   (cualquier usuario logueado)
 ========================= */
-router.get("/solicitudes", verificarToken, (req, res) => {
-
-    db.query(
-        "SELECT id, nombre, email, created_at FROM solicitudes_usuarios WHERE estado = 'pendiente'",
-        (err, results) => {
-            res.json(results);
-        }
+router.get("/solicitudes", verificarToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT id, nombre, email, created_at FROM solicitudes_usuarios WHERE estado = 'pendiente'"
     );
+
+    res.json(result.rows);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 /* =========================
    APROBAR SOLICITUD
-   (cualquier usuario logueado)
 ========================= */
-router.post("/aprobar/:id", verificarToken, (req, res) => {
-
+router.post("/aprobar/:id", verificarToken, async (req, res) => {
+  try {
     const { id } = req.params;
 
-    db.query(
-        "SELECT * FROM solicitudes_usuarios WHERE id = ? AND estado = 'pendiente'",
-        [id],
-        (err, results) => {
-
-            if (results.length === 0)
-                return res.status(404).json({ message: "Solicitud no encontrada" });
-
-            const solicitud = results[0];
-
-            db.query(
-                "INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)",
-                [solicitud.nombre, solicitud.email, solicitud.password]
-            );
-
-            db.query(
-                "UPDATE solicitudes_usuarios SET estado = 'aprobado' WHERE id = ?",
-                [id]
-            );
-
-            res.json({ message: "Usuario aprobado correctamente" });
-        }
+    const result = await db.query(
+      "SELECT * FROM solicitudes_usuarios WHERE id = $1 AND estado = 'pendiente'",
+      [id]
     );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Solicitud no encontrada" });
+
+    const solicitud = result.rows[0];
+
+    await db.query(
+      "INSERT INTO usuarios (nombre, email, password) VALUES ($1, $2, $3)",
+      [solicitud.nombre, solicitud.email, solicitud.password]
+    );
+
+    await db.query(
+      "UPDATE solicitudes_usuarios SET estado = 'aprobado' WHERE id = $1",
+      [id]
+    );
+
+    res.json({ message: "Usuario aprobado correctamente" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

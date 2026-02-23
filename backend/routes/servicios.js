@@ -1,210 +1,191 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
-const enviarEncuestaEmail = require("../utils/email"); // 👈 importante
+const enviarEncuestaEmail = require("../utils/email");
 
-// LISTAR SERVICIOS
-// LISTAR SERVICIOS (con filtro opcional por fecha)
-router.get("/", (req, res) => {
-
+/* =========================
+   LISTAR SERVICIOS
+========================= */
+router.get("/", async (req, res) => {
+  try {
     const { desde, hasta } = req.query;
 
     let sql = `
-        SELECT s.*, v.placa, v.marca
-        FROM servicios s
-        JOIN vehiculos v ON s.vehiculo_id = v.id
+      SELECT s.*, v.placa, v.marca
+      FROM servicios s
+      JOIN vehiculos v ON s.vehiculo_id = v.id
     `;
 
     const params = [];
 
-    // Si vienen fechas → aplicar filtro
     if (desde && hasta) {
-        sql += ` WHERE DATE(s.fecha) BETWEEN ? AND ? `;
-        params.push(desde, hasta);
+      sql += ` WHERE s.fecha BETWEEN $1 AND $2 `;
+      params.push(desde, hasta);
     }
 
     sql += ` ORDER BY s.fecha DESC`;
 
-    db.query(sql, params, (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-// CREAR SERVICIO
-router.post("/", (req, res) => {
+/* =========================
+   CREAR SERVICIO
+========================= */
+router.post("/", async (req, res) => {
+  try {
     const { vehiculo_id, descripcion, tipo_servicio, precio, fecha, estado } = req.body;
 
-    const sql = `
-        INSERT INTO servicios 
-        (vehiculo_id, descripcion, tipo_servicio, precio, fecha, estado) 
-        VALUES (?, ?, ?, ?, ?, ?)
-    `;
+    await db.query(`
+      INSERT INTO servicios 
+      (vehiculo_id, descripcion, tipo_servicio, precio, fecha, estado) 
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [
+      vehiculo_id,
+      descripcion,
+      tipo_servicio,
+      precio,
+      fecha,
+      estado || "pendiente"
+    ]);
 
-    db.query(sql, [vehiculo_id, descripcion, tipo_servicio, precio, fecha, estado || 'pendiente'], (err) => {
-        if(err) return res.status(500).json({error: err});
-        res.json({message: "Servicio registrado ✅"});
-    });
+    res.json({ message: "Servicio registrado ✅" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// 👇👇 AQUÍ VA EL NUEVO ENDPOINT 👇👇
-router.put("/:id/entregar", (req, res) => {
-
-    console.log("🔥 ENTREGAR SERVICIO LLAMADO");
-
+/* =========================
+   ENTREGAR SERVICIO
+========================= */
+router.put("/:id/entregar", async (req, res) => {
+  try {
     const servicioId = req.params.id;
 
-    const updateSql = "UPDATE servicios SET estado = 'entregado' WHERE id = ?";
+    const update = await db.query(
+      "UPDATE servicios SET estado = 'entregado' WHERE id = $1",
+      [servicioId]
+    );
 
-    db.query(updateSql, [servicioId], (err, result) => {
+    if (update.rowCount === 0)
+      return res.status(404).json({ message: "Servicio no encontrado" });
 
-        if (err) {
-            console.log("❌ Error update:", err);
-            return res.status(500).json({ error: err });
-        }
+    const result = await db.query(`
+      SELECT 
+        (c.primer_nombre || ' ' || COALESCE(c.segundo_nombre,'') || ' ' || c.primer_apellido) AS nombre,
+        c.email
+      FROM servicios s
+      JOIN vehiculos v ON s.vehiculo_id = v.id
+      JOIN clientes c ON v.cliente_id = c.id
+      WHERE s.id = $1
+    `, [servicioId]);
 
-        if (!result || result.affectedRows === 0) {
-            return res.status(404).json({ message: "Servicio no encontrado" });
-        }
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Cliente no encontrado" });
 
-        console.log("✅ Servicio actualizado");
+    const cliente = result.rows[0];
 
-        const sql = `
-            SELECT 
-                CONCAT(
-                    c.primer_nombre, ' ',
-                    IFNULL(c.segundo_nombre, ''), ' ',
-                    c.primer_apellido
-                ) AS nombre,
-                c.email
-            FROM servicios s
-            JOIN vehiculos v ON s.vehiculo_id = v.id
-            JOIN clientes c ON v.cliente_id = c.id
-            WHERE s.id = ?
-        `;
+    try {
+      await enviarEncuestaEmail(cliente, servicioId);
+      return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
+    } catch (error) {
+      return res.status(500).json({
+        message: "Servicio entregado pero falló el envío",
+        error: error.message
+      });
+    }
 
-        db.query(sql, [servicioId], async (err, results) => {
-
-            if (err) {
-                console.log("❌ Error buscando cliente:", err);
-                return res.status(500).json({ error: err });
-            }
-
-            if (!results || results.length === 0) {
-                console.log("❌ Cliente no encontrado");
-                return res.status(404).json({ message: "Cliente no encontrado" });
-            }
-
-            const cliente = results[0];
-
-            console.log("📧 Intentando enviar a:", cliente.email);
-
-            try {
-                await enviarEncuestaEmail(cliente, servicioId);
-                console.log("📧 CORREO ENVIADO");
-                return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
-            } catch (error) {
-                console.log("❌ ERROR ENVIANDO:", error);
-                return res.status(500).json({
-                    message: "Servicio entregado pero falló el envío",
-                    error: error.message
-                });
-            }
-        });
-    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-
-
-router.put("/:id/estado", (req, res) => {
-
+/* =========================
+   CAMBIAR ESTADO
+========================= */
+router.put("/:id/estado", async (req, res) => {
+  try {
     const servicioId = req.params.id;
     const { estado } = req.body;
 
     const estadosValidos = ["pendiente", "listo", "entregado"];
 
-    if (!estadosValidos.includes(estado)) {
-        return res.status(400).json({ message: "Estado inválido" });
-    }
+    if (!estadosValidos.includes(estado))
+      return res.status(400).json({ message: "Estado inválido" });
 
-    const sql = "UPDATE servicios SET estado = ? WHERE id = ?";
+    const result = await db.query(
+      "UPDATE servicios SET estado = $1 WHERE id = $2",
+      [estado, servicioId]
+    );
 
-    db.query(sql, [estado, servicioId], (err, result) => {
+    if (result.rowCount === 0)
+      return res.status(404).json({ message: "Servicio no encontrado" });
 
-        if (err) return res.status(500).json({ error: err });
+    res.json({ message: "Estado actualizado correctamente ✅" });
 
-        if (result.affectedRows === 0)
-            return res.status(404).json({ message: "Servicio no encontrado" });
-
-        res.json({ message: "Estado actualizado correctamente ✅" });
-
-    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-router.put("/:id", (req, res) => {
-
+/* =========================
+   EDITAR SERVICIO
+========================= */
+router.put("/:id", async (req, res) => {
+  try {
     const servicioId = req.params.id;
     const { descripcion, tipo_servicio, precio, fecha } = req.body;
 
-    // Primero verificamos estado
-    const checkSql = "SELECT estado FROM servicios WHERE id = ?";
+    const check = await db.query(
+      "SELECT estado FROM servicios WHERE id = $1",
+      [servicioId]
+    );
 
-    db.query(checkSql, [servicioId], (err, results) => {
+    if (check.rows.length === 0)
+      return res.status(404).json({ message: "Servicio no encontrado" });
 
-        if (err) return res.status(500).json({ error: err });
+    if (check.rows[0].estado === "entregado")
+      return res.status(400).json({
+        message: "No se puede editar un servicio entregado ❌"
+      });
 
-        if (results.length === 0)
-            return res.status(404).json({ message: "Servicio no encontrado" });
+    await db.query(`
+      UPDATE servicios
+      SET descripcion=$1, tipo_servicio=$2, precio=$3, fecha=$4
+      WHERE id=$5
+    `, [descripcion, tipo_servicio, precio, fecha, servicioId]);
 
-        if (results[0].estado === "entregado") {
-            return res.status(400).json({ 
-                message: "No se puede editar un servicio entregado ❌" 
-            });
-        }
+    res.json({ message: "Servicio actualizado correctamente ✅" });
 
-        const updateSql = `
-            UPDATE servicios
-            SET descripcion=?, tipo_servicio=?, precio=?, fecha=?
-            WHERE id=?
-        `;
-
-        db.query(updateSql,
-            [descripcion, tipo_servicio, precio, fecha, servicioId],
-            (err) => {
-
-                if (err) return res.status(500).json({ error: err });
-
-                res.json({ message: "Servicio actualizado correctamente ✅" });
-            }
-        );
-
-    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+/* =========================
+   ESTADÍSTICAS MARCAS
+========================= */
+router.get("/estadisticas/marcas", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        UPPER(TRIM(marca)) AS marca,
+        COUNT(*) AS total
+      FROM vehiculos
+      GROUP BY UPPER(TRIM(marca))
+      ORDER BY total DESC
+    `);
 
-// 📊 Vehículos agrupados por marca
-router.get("/estadisticas/marcas", (req, res) => {
+    res.json(result.rows);
 
-    const sql = `
-        SELECT 
-            UPPER(TRIM(marca)) AS marca,
-            COUNT(*) AS total
-        FROM vehiculos
-        GROUP BY UPPER(TRIM(marca))
-        ORDER BY total DESC
-    `;
-
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
-
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
-
-
-
 
 module.exports = router;
