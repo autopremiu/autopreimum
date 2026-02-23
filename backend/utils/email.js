@@ -1,5 +1,4 @@
 require("dotenv").config();
-const fetch = require("node-fetch");
 
 /* =========================================
    FUNCIÓN GENÉRICA PARA ENVIAR CORREOS
