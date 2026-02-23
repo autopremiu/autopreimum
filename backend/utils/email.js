@@ -1,8 +1,10 @@
 require("dotenv").config();
+const fetch = require("node-fetch");
 
-async function enviarEncuestaEmail(cliente, servicioId) {
-
-    const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
+/* =========================================
+   FUNCIÓN GENÉRICA PARA ENVIAR CORREOS
+========================================= */
+async function enviarEmail(toEmail, subject, htmlContent) {
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -17,24 +19,48 @@ async function enviarEncuestaEmail(cliente, servicioId) {
                 email: "comercialautopremium@gmail.com"
             },
             to: [{
-                email: cliente.email,
-                name: cliente.nombre
+                email: toEmail
             }],
-            subject: "Encuesta de Satisfacción - Taller",
-            htmlContent: `
-                <h2>Hola ${cliente.nombre}</h2>
-                <p>Gracias por confiar en nuestro taller.</p>
-                <a href="${linkEncuesta}">Responder Encuesta</a>
-            `
+            subject: subject,
+            htmlContent: htmlContent
         })
     });
 
+    const data = await response.text();
+
     if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Brevo error: ${errorData}`);
+        console.error("BREVO ERROR:", data);
+        throw new Error(`Brevo error: ${data}`);
     }
 
-    return await response.json();
+    return data;
 }
 
-module.exports = enviarEncuestaEmail;
+/* =========================================
+   FUNCIÓN PARA ENCUESTAS
+========================================= */
+async function enviarEncuestaEmail(cliente, servicioId) {
+
+    const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
+
+    const html = `
+        <h2>Hola ${cliente.nombre}</h2>
+        <p>Gracias por confiar en nuestro taller.</p>
+        <p>Queremos conocer tu opinión:</p>
+        <a href="${linkEncuesta}" 
+           style="display:inline-block;padding:10px 15px;background:#e10000;color:#ffffff;text-decoration:none;border-radius:5px;">
+           Responder Encuesta
+        </a>
+    `;
+
+    return await enviarEmail(
+        cliente.email,
+        "Encuesta de Satisfacción - Taller",
+        html
+    );
+}
+
+module.exports = {
+    enviarEmail,
+    enviarEncuestaEmail
+};

@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-const enviarEmail = require("../utils/email");
+const { enviarEmail } = require("../utils/email");
 const verificarToken = require("../middleware/authMiddleware");
 
 const SECRET = process.env.JWT_SECRET;
