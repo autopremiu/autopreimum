@@ -2295,8 +2295,17 @@ function aprobar(id){
 
 const token = localStorage.getItem("token");
 
-const payload = JSON.parse(atob(token.split(".")[1]));
+let payload = null;
 
+if (token) {
+    try {
+        payload = JSON.parse(atob(token.split(".")[1]));
+    } catch (error) {
+        console.error("Token inválido");
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
+    }
+}
 
 
 
