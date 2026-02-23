@@ -57,7 +57,7 @@ router.post("/forgot-password", (req, res) => {
     db.query("SELECT * FROM usuarios WHERE email = ?", [email], (err, results) => {
 
         if (err)
-            return res.status(500).json({ message: "Error servidor" });
+            return res.status(500).json({ message: err.message });
 
         if (results.length === 0)
             return res.status(404).json({ message: "Usuario no encontrado" });
@@ -87,8 +87,8 @@ router.post("/forgot-password", (req, res) => {
                     res.json({ message: "Correo enviado" });
 
                 } catch (error) {
-                    console.error(error);
-                    res.status(500).json({ message: "Error enviando correo" });
+                    console.error("ERROR REAL:", error);
+                    res.status(500).json({ message: error.message });
                 }
             }
         );
