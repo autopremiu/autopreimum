@@ -1847,7 +1847,8 @@ async function entregarServicio(id) {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.message || "Error al entregar servicio");
+                console.log("RESPUESTA COMPLETA:", data);
+                throw new Error(data.error || data.message);
             }
 
             mostrarMensajeServicio(data.message, "ok");
@@ -2407,7 +2408,6 @@ window.addEventListener("DOMContentLoaded", function(){
 });
 
 
-console.log("ERROR COMPLETO:", error);
 
 
 </script>
