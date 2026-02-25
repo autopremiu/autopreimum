@@ -1,13 +1,19 @@
 require("dotenv").config();
 
-
 /* =========================================
    FUNCIÓN GENÉRICA PARA ENVIAR CORREOS
 ========================================= */
 async function enviarEmail(toEmail, subject, htmlContent) {
 
+    if (!toEmail) {
+        throw new Error("Email destino vacío ❌");
+    }
+
+    if (!process.env.BREVO_API_KEY) {
+        throw new Error("BREVO_API_KEY no está definida ❌");
+    }
+
     console.log("Enviando correo a:", toEmail);
-    console.log("Usando API KEY:", process.env.BREVO_API_KEY ? "SI" : "NO");
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -21,22 +27,18 @@ async function enviarEmail(toEmail, subject, htmlContent) {
                 name: "Autopremium",
                 email: "comercialautopremium@gmail.com"
             },
-            to: [{
-                email: toEmail
-            }],
-            subject: subject,
-            htmlContent: htmlContent
+            to: [{ email: toEmail }],
+            subject,
+            htmlContent
         })
     });
 
     const data = await response.text();
 
+    console.log("BREVO STATUS:", response.status);
+    console.log("BREVO RESPONSE:", data);
+
     if (!response.ok) {
-        console.error("========== BREVO ERROR ==========");
-        console.error("STATUS:", response.status);
-        console.error("RESPONSE:", data);
-        console.error("API KEY EXISTS:", !!process.env.BREVO_API_KEY);
-        console.error("=================================");
         throw new Error(`Brevo error: ${data}`);
     }
 
@@ -47,6 +49,10 @@ async function enviarEmail(toEmail, subject, htmlContent) {
    FUNCIÓN PARA ENCUESTAS
 ========================================= */
 async function enviarEncuestaEmail(cliente, servicioId) {
+
+    if (!cliente || !cliente.email) {
+        throw new Error("Cliente inválido o sin email ❌");
+    }
 
     const linkEncuesta = `https://autopreimum.onrender.com/encuesta/${servicioId}`;
 
