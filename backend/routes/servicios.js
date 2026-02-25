@@ -95,9 +95,10 @@ router.put("/:id/entregar", async (req, res) => {
       return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
     } catch (error) {
       return res.status(500).json({
-        message: "Servicio entregado pero falló el envío",
-        error: error.message
-      });
+      message: "Servicio entregado pero falló el envío",
+      error: error.message,
+      stack: error.stack
+    });
     }
 
   } catch (error) {
