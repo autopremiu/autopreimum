@@ -5,6 +5,9 @@ require("dotenv").config();
 ========================================= */
 async function enviarEmail(toEmail, subject, htmlContent) {
 
+    console.log("Enviando correo a:", toEmail);
+    console.log("Usando API KEY:", process.env.BREVO_API_KEY ? "SI" : "NO");
+
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
@@ -28,7 +31,11 @@ async function enviarEmail(toEmail, subject, htmlContent) {
     const data = await response.text();
 
     if (!response.ok) {
-        console.error("BREVO ERROR:", data);
+        console.error("========== BREVO ERROR ==========");
+        console.error("STATUS:", response.status);
+        console.error("RESPONSE:", data);
+        console.error("API KEY EXISTS:", !!process.env.BREVO_API_KEY);
+        console.error("=================================");
         throw new Error(`Brevo error: ${data}`);
     }
 
