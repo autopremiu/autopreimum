@@ -5,8 +5,9 @@ require("dotenv").config();
    FUNCIÓN GENÉRICA PARA ENVIAR CORREOS
 ========================================= */
 async function enviarEmail(toEmail, subject, htmlContent) {
-    console.log("Intentando enviar a:", toEmail);
-    console.log("API KEY existe:", !!process.env.BREVO_API_KEY);
+
+    console.log("Enviando correo a:", toEmail);
+    console.log("Usando API KEY:", process.env.BREVO_API_KEY ? "SI" : "NO");
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -20,22 +21,26 @@ async function enviarEmail(toEmail, subject, htmlContent) {
                 name: "Autopremium",
                 email: "comercialautopremium@gmail.com"
             },
-            to: [{ email: toEmail }],
-            subject,
-            htmlContent
+            to: [{
+                email: toEmail
+            }],
+            subject: subject,
+            htmlContent: htmlContent
         })
     });
 
-    const text = await response.text();
-
-    console.log("STATUS:", response.status);
-    console.log("RESPONSE BREVO:", text);
+    const data = await response.text();
 
     if (!response.ok) {
-        throw new Error(`Brevo error: ${text}`);
+        console.error("========== BREVO ERROR ==========");
+        console.error("STATUS:", response.status);
+        console.error("RESPONSE:", data);
+        console.error("API KEY EXISTS:", !!process.env.BREVO_API_KEY);
+        console.error("=================================");
+        throw new Error(`Brevo error: ${data}`);
     }
 
-    return text;
+    return data;
 }
 
 /* =========================================
