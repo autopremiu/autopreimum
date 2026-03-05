@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 const { enviarEncuestaEmail } = require("../utils/email");
+const { enviarEncuestaWhatsApp } = require("../services/whatsappService");
 /* =========================
    LISTAR SERVICIOS
 ========================= */
@@ -66,6 +67,7 @@ router.put("/:id/entregar", async (req, res) => {
   try {
     const servicioId = req.params.id;
 
+    // 1️⃣ Actualizar estado
     const update = await db.query(
       "UPDATE servicios SET estado = 'entregado' WHERE id = $1",
       [servicioId]
@@ -74,10 +76,12 @@ router.put("/:id/entregar", async (req, res) => {
     if (update.rowCount === 0)
       return res.status(404).json({ message: "Servicio no encontrado" });
 
+    // 2️⃣ Obtener datos del cliente (ahora con teléfono)
     const result = await db.query(`
       SELECT 
         (c.primer_nombre || ' ' || COALESCE(c.segundo_nombre,'') || ' ' || c.primer_apellido) AS nombre,
-        c.email
+        c.email,
+        c.telefono
       FROM servicios s
       JOIN vehiculos v ON s.vehiculo_id = v.id
       JOIN clientes c ON v.cliente_id = c.id
@@ -90,14 +94,27 @@ router.put("/:id/entregar", async (req, res) => {
     const cliente = result.rows[0];
 
     try {
+      // 3️⃣ Enviar Email
       await enviarEncuestaEmail(cliente, servicioId);
-      return res.json({ message: "Servicio entregado y encuesta enviada ✅" });
+
+      // 4️⃣ Enviar WhatsApp si tiene teléfono
+      if (cliente.telefono && cliente.telefono.length >= 10) {
+        await enviarEncuestaWhatsApp(
+          cliente.telefono,
+          cliente.nombre,
+          servicioId
+        );
+      }
+
+      return res.json({
+        message: "Servicio entregado y encuesta enviada por Email y WhatsApp ✅"
+      });
+
     } catch (error) {
       return res.status(500).json({
-      message: "Servicio entregado pero falló el envío",
-      error: error.message,
-      stack: error.stack
-    });
+        message: "Servicio entregado pero falló el envío",
+        error: error.message
+      });
     }
 
   } catch (error) {
